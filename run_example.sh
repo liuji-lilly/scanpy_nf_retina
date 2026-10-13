@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Example script to run the scanpy pipeline
+nextflow run main.nf --input ./sampledata/test --outdir ./sampledata/results --tissue_name "Mouse Organoid"
 
 # Set input directory (10X format)
 INPUT_DIR="/home/workspace/scanpytest"
@@ -23,4 +24,4 @@ nextflow run main.nf \
     -with-timeline ${OUTPUT_DIR}/timeline.html \
     -with-dag ${OUTPUT_DIR}/flowchart.svg
 
-echo "Pipeline complete! Check results in: ${OUTPUT_DIR}"
+

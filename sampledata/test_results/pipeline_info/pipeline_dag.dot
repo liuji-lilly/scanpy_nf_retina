@@ -1,0 +1,55 @@
+digraph "pipeline_dag" {
+rankdir=TB;
+v0 [shape=point,label="",fixedsize=true,width=0.1,xlabel="channel.fromPath"];
+v1 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+v0 -> v1;
+
+v1 [shape=circle,label="",fixedsize=true,width=0.1,xlabel="map"];
+v7 [label="SUBCLUSTERING"];
+v1 -> v7 [label="final_adata_ch"];
+
+v2 [shape=point,label="",fixedsize=true,width=0.1];
+v7 [label="SUBCLUSTERING"];
+v2 -> v7 [label="interest_csv"];
+
+v3 [shape=point,label="",fixedsize=true,width=0.1];
+v7 [label="SUBCLUSTERING"];
+v3 -> v7 [label="custom_marker_file"];
+
+v4 [shape=point,label="",fixedsize=true,width=0.1];
+v7 [label="SUBCLUSTERING"];
+v4 -> v7 [label="marker_file"];
+
+v5 [shape=point,label="",fixedsize=true,width=0.1];
+v7 [label="SUBCLUSTERING"];
+v5 -> v7 [label="annotated"];
+
+v6 [shape=point,label="",fixedsize=true,width=0.1];
+v7 [label="SUBCLUSTERING"];
+v6 -> v7 [label="tissue_name"];
+
+v7 [label="SUBCLUSTERING"];
+v13 [shape=point];
+v7 -> v13;
+
+v7 [label="SUBCLUSTERING"];
+v12 [shape=point];
+v7 -> v12;
+
+v7 [label="SUBCLUSTERING"];
+v11 [shape=point];
+v7 -> v11;
+
+v7 [label="SUBCLUSTERING"];
+v10 [shape=point];
+v7 -> v10;
+
+v7 [label="SUBCLUSTERING"];
+v9 [shape=point];
+v7 -> v9;
+
+v7 [label="SUBCLUSTERING"];
+v8 [shape=point];
+v7 -> v8;
+
+}

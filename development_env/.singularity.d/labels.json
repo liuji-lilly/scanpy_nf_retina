@@ -1,0 +1,8 @@
+{
+	"org.label-schema.build-arch": "amd64",
+	"org.label-schema.build-date": "Thursday_10_September_2026_13:2:50_UTC",
+	"org.label-schema.schema-version": "1.0",
+	"org.label-schema.usage.apptainer.version": "1.4.5",
+	"org.label-schema.usage.singularity.deffile.bootstrap": "docker",
+	"org.label-schema.usage.singularity.deffile.from": "python:3.11-slim"
+}

@@ -1,16 +1,16 @@
 process DIMENSIONALITY_REDUCTION {
-    tag "PCA and UMAP"
+    tag "PCA and UMAP: ${meta.id}"
     publishDir "${params.outdir}/03_dimred", mode: 'copy'
     
     input:
-    path(adata_normalized)
+    tuple val(meta), path(adata_normalized)
     val(n_pcs)
     val(n_neighbors)
     val(n_pcs_umap)
     
     output:
-    path("adata_dimred.h5ad"), emit: adata
-    path("pca_variance.png"), emit: pca_plot
+    tuple val(meta), path("${meta.id}_adata_dimred.h5ad"), emit: adata
+    tuple val(meta), path("${meta.id}_pca_variance.pdf"), emit: pca_plot
     
     script:
     """
@@ -21,29 +21,40 @@ process DIMENSIONALITY_REDUCTION {
     import matplotlib.pyplot as plt
     
     sc.settings.verbosity = 3
-    
     # Load data
+    print(f"Loading normalized data for ${meta.id}...")
     adata = sc.read_h5ad('${adata_normalized}')
-    
+    adata.X = adata.layers["scran_normalization"].copy()
+   
     # PCA
     print("Computing PCA...")
-    sc.tl.pca(adata, svd_solver='arpack', n_comps=${n_pcs})
-    
+    adata.var["highly_variable"] = adata.var["highly_deviant"].copy()
+    sc.pp.pca(adata, svd_solver="arpack", mask_var="highly_variable", n_comps=${n_pcs})
+
     # Plot variance explained
-    sc.pl.pca_variance_ratio(adata, log=True, n_pcs=50, show=False)
-    plt.savefig('pca_variance.png', dpi=150, bbox_inches='tight')
+    sc.pl.pca_variance_ratio(adata, log=True, n_pcs=${n_pcs}, show=False)
+    fig = plt.gcf()
+    fig.suptitle(f"PCA Variance Ratio - ${meta.id}", y=1.02, fontsize=12)
+    plt.savefig('${meta.id}_pca_variance.pdf',format="pdf", bbox_inches="tight", dpi=300)
     plt.close()
-    
+
     # Compute neighborhood graph
     print("Computing neighborhood graph...")
+    ##n_neighbors = 15
+    #n_pcs_umap = 40
     sc.pp.neighbors(adata, n_neighbors=${n_neighbors}, n_pcs=${n_pcs_umap})
-    
+
+
     # UMAP
     print("Computing UMAP...")
     sc.tl.umap(adata)
-    
+    print("Computing t-SNE...")
+    sc.tl.tsne(adata, use_rep='X_pca')
+
     # Save
-    adata.write('adata_dimred.h5ad')
-    print("Dimensionality reduction complete")
+    #adata.write("/fsx/home/l128405/scanpy_nf_retina/sampledata/results/03_dimred/adata_normalized.h5ad")
+    adata.write('${meta.id}_adata_dimred.h5ad')
+    print(f"Dimensionality reduction complete for ${meta.id}")
+
     """
 }

@@ -100,14 +100,7 @@ chmod +x nextflow
 nextflow run main.nf --input /path/to/10x/data --outdir results
 
 # With custom parameters
-nextflow run main.nf \\
-    --input /path/to/10x/data \\
-    --outdir results \\
-    --min_genes 200 \\
-    --max_genes 2500 \\
-    --max_mt_percent 5 \\
-    --leiden_resolution 1.0 \\
-    --annotate_celltypes true
+nextflow run main.nf --input ./sampledata/samplesheet.csv --outdir ./sampledata/results --tissue_name "Mouse Organoid"  
 ```
 
 ### 3. Resume a failed run

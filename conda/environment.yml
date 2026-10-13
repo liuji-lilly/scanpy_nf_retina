@@ -2,40 +2,56 @@ name: scanpy-pipeline
 channels:
   - conda-forge
   - bioconda
-  - defaults
 
 dependencies:
-  - python=3.12
-  - pip=24.0
+  - python
   
   # Core scientific computing
-  - numpy=1.26
-  - scipy=1.11
-  - pandas=2.1
-  - matplotlib=3.8
-  - seaborn=0.13
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - seaborn
   
   # Single-cell analysis
-  - scanpy=1.10
-  - anndata=0.10
-  - igraph=0.11
-  - leidenalg=0.10
-  
-  # File handling
-  - h5py=3.10
-  - tables=3.9
-  - openpyxl=3.1
-  
-  # Additional dependencies
-  - scikit-learn=1.3
-  - statsmodels=0.14
-  - numba=0.58
-  - umap-learn=0.5
-  
-  # Jupyter (optional, for interactive analysis)
-  - jupyter=1.0
-  - ipykernel=6.27
+  - scanpy
+  - anndata
+  - igraph
+  - leidenalg
+  - omicverse
+  - decoupler >=1.5.0  
+  - cellbender
+  # Image processing (Required by Scrublet for automatic thresholding)
+  - scikit-image
+  # Single-cell file formats and compression
+  - h5py
+  - numcodecs <0.16
+  - pytables
+  - openpyxl
 
-  # Pip packages (if not in conda)
+  # Additional dependencies
+  - scikit-learn
+  - statsmodels
+  - numba
+  - umap-learn
+  # Text adjustment for clean plots
+  - adjusttext
+  # HTTP library for web requests
+  - requests
+
+    # R Core and Jupyter Integration (Required for %%R magic)
+  - r-base
+  - rpy2
+
+  # R Packages from Conda-Forge & Bioconda
+  - r-seurat
+  - bioconductor-scater
+  - bioconductor-scdblfinder
+  - bioconductor-singlecellexperiment
+  - bioconductor-biocparallel
+  - bioconductor-scry
+  - pip
   - pip:
-    - session-info==1.0.0
+      - lamindb[aws,bctrl]  # Data & workflow management (add extras like aws if needed)
+      - pertpy >=0.8.0          # Perturbation analysis (loads scanpy/anndata-dependent tools)
+      - pydeseq2
