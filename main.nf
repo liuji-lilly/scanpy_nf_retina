@@ -6,7 +6,6 @@ nextflow.enable.dsl = 2
 ========================================================================================
     Single-cell RNA-seq Analysis Pipeline using Scanpy
 ========================================================================================
-    Author: Xiaobin Zheng
     Description: Automated pipeline for scRNA-seq QC, normalization, clustering, 
                  and cell type identification
 ========================================================================================
@@ -160,13 +159,11 @@ workflow {
     if (params.annotate_celltypes) {
         marker_file_ch = Channel.value(file(params.marker_file, checkIfExists: true))
         tissue_name_val = Channel.value(params.tissue_name)
-        species_val     = Channel.value(params.species)
 
         ANNOTATE_CELL_TYPES(
             MARKER_GENES.out.adata,
             marker_file_ch,
-            tissue_name_val,
-            species_val
+            tissue_name_val
         )
         final_adata = ANNOTATE_CELL_TYPES.out.adata
     } else {

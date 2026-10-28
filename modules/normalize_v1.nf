@@ -3,7 +3,7 @@ process NORMALIZE_AND_HVG {
     publishDir "${params.outdir}/02_normalize", mode: 'copy'
     
     input:
-    tuple val(meta), path("${meta.id}_qc.h5ad")
+    tuple val(meta), path(adata_qc)
     val(n_top_genes)
     
     output:

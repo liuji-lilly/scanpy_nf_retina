@@ -10,15 +10,70 @@ from scipy.sparse import csc_matrix
 import omicverse as ov
 from pyscdblfinder import ScDblFinder
 from matplotlib.backends.backend_pdf import PdfPages
+import os
 
 sc.settings.verbosity = 3
 sc.settings.set_figure_params(dpi=150, facecolor='white')
 
 # Load data
 print("Loading 10X data...")
-adata = sc.read_10x_mtx('${input_dir}', var_names='gene_symbols', cache=True)
+#adata = sc.read_10x_mtx('${input_dir}', var_names='gene_symbols', cache=True)
 
-#adata = sc.read_10x_mtx('/fsx/home/l128405/scanpy_nf_retina/sampledata/test1', var_names='gene_symbols', cache=True)
+input_path = '${input_dir_or_file}'
+input_path = "/fsx/home/l128405/10xgenomics/retina_dataset/cellranger_alignment/cellranger/retina_P90/cellbender_removebackground/retina_P90_filtered.h5"
+input_path = "/fsx/home/l128405/10xgenomics/retina_dataset/cellranger_alignment/cellranger/mtx_conversions/retina_P14/retina_P14_filtered_matrix.h5ad"
+input_path = "/fsx/home/l128405/10xgenomics/retina_dataset/cellranger_alignment/cellranger/count/retina_P90/outs/filtered_feature_bc_matrix"
+input_path = "/fsx/home/l128405/10xgenomics/retina_dataset/cellranger_alignment/cellranger/retina_P90/cellbender_removebackground/retina_P90_filtered.h5"
+
+print(f"Loading data for ${meta.id} from: {input_path}")
+
+# Pathway 1: Raw Cell Ranger plain text matrix directory structure
+if os.path.isdir(input_path):
+    print("Detected directory structure. Reading as Cell Ranger MTX format...")
+    adata = sc.read_10x_mtx(input_path, var_names='gene_symbols', cache=True)
+    
+    # Backup Ensembl ID mapping tracking column if present
+    if 'gene_ids' in adata.var.columns:
+        adata.var['ensembl_id'] = adata.var['gene_ids']
+    
+# Pathway 2: Pre-converted Scanpy AnnData matrix datasets
+elif input_path.endswith('.h5ad'):
+    print(f"Detected AnnData H5AD file: {input_path}. Reading via sc.read_h5ad...")
+    adata = sc.read_h5ad(input_path)
+    
+    # Intercept and fix Ensembl ID structural indexes using verified column mapping
+    if adata.var_names.str.startswith('ENS').any():
+        symbol_col = None
+        # Prioritize the verified 'gene_symbols' track directly output by Cell Ranger
+        for col in ['gene_symbols', 'gene_name', 'symbol', 'gene_id', 'gene_ids']:
+            if col in adata.var.columns:
+                # Guard against empty entries or duplicate Ensembl maps
+                if not adata.var[col].astype(str).str.startswith('ENS').all() and not adata.var[col].astype(str).str.upper().isin(['NA', 'NAN', 'NONE']).all():
+                    symbol_col = col
+                    break
+        
+        if symbol_col:
+            print(f"Found clean Ensembl mapping column: '{symbol_col}'. Restoring Gene Symbols...")
+            adata.var['ensembl_id'] = adata.var_names
+            adata.var_names = adata.var[symbol_col].astype(str)
+        else:
+            print("WARNING: var_names are Ensembl IDs, but no valid display column was found in metadata table.")
+    
+    adata.var_names_make_unique()
+    
+# Pathway 3: Binary H5 containers compiled by Cell Ranger count pipelines
+elif input_path.endswith('.h5') or input_path.endswith('.hdf5'):
+    print("Detected Cell Ranger binary H5 file tree container. Ingesting features natively...")
+    # read_10x_h5 natively extracts 'gene_symbols' directly into your primary array matrix index
+    adata = sc.read_10x_h5(input_path)
+    
+    if 'gene_ids' in adata.var.columns:
+        adata.var['ensembl_id'] = adata.var['gene_ids']
+    adata.var_names_make_unique()
+    
+else:
+    raise ValueError(f"Unsupported input file format variation provided: {input_path}")
+    
 
 # Initial stats
 n_cells_initial = adata.n_obs

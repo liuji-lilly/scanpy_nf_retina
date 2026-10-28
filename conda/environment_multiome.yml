@@ -1,25 +1,34 @@
-name: scanpy-pipeline
+name: multiome-pipeline
 channels:
   - conda-forge
   - bioconda
 
 dependencies:
   - python
-  
+  #- libblas=*=*openblas
+  - websockets>=13.0 
+  - pip
+  # Core single-cell infrastructure (Move from pip to Conda)
+  - scanpy>=1.10.0
+  - anndata>=0.10.0
+  - muon
+  - decoupler>=1.5.0
+  - cellbender
+  - snapatac2>=2.10.0
+  - mofapy2
+  - pydeseq2
+  - lamindb
   # Core scientific computing
   - numpy
   - scipy
   - pandas
   - matplotlib
   - seaborn
-  
+  - wrapt
   # Single-cell analysis
-  - scanpy
-  - anndata
   - igraph
   - leidenalg
-  - omicverse
-  - decoupler >=1.5.0  
+#  - omicverse
   - cellbender
   # Image processing (Required by Scrublet for automatic thresholding)
   - scikit-image
@@ -38,7 +47,7 @@ dependencies:
   - adjusttext
   # HTTP library for web requests
   - requests
-
+  - pertpy >=0.8.0   
     # R Core and Jupyter Integration (Required for %%R magic)
   - r-base
   - rpy2
@@ -50,8 +59,6 @@ dependencies:
   - bioconductor-singlecellexperiment
   - bioconductor-biocparallel
   - bioconductor-scry
-  - pip
   - pip:
-      - lamindb[aws,bctrl]  # Data & workflow management (add extras like aws if needed)
-      - pertpy >=0.8.0          # Perturbation analysis (loads scanpy/anndata-dependent tools)
-      - pydeseq2
+     #- pyscdblfinder
+     - magic-impute

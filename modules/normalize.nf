@@ -114,11 +114,7 @@ process NORMALIZE_AND_HVG {
     r("X <- sparseMatrix(i = i, j = j, x = x, dims = c(%d, %d))" % X_sparse.shape)
 
     ro.r('''
-    sce <- SingleCellExperiment(
-      assays = list(X = X),
-      colData = obs,
-      rowData = var
-    )
+    sce <- SingleCellExperiment(assays = list(X = X),colData = obs,rowData = var)
     sce <- devianceFeatureSelection(sce, assay = "X")
     ''')
 
@@ -134,7 +130,8 @@ process NORMALIZE_AND_HVG {
 
     # Run native highly variable gene checking on your new layer
     sc.pp.highly_variable_genes(adata, layer="scran_normalization")
-
+    
+    ##sc.pp.highly_variable_genes(adata, n_top_genes=${n_top_genes}, flavor="seurat_v3", layer="counts")
     plt.figure(figsize=(6, 5))
     ax = sns.scatterplot(data=adata.var, x="means", y="dispersions", hue="highly_deviant", s=15)
     ax.set_xlim(None, 1.5)

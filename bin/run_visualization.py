@@ -57,43 +57,157 @@ def run_visualization(adata_path, sample_id, marker_genes_file, annotated_str="f
     # =========================================================================
     # 1. CORE EMBEDDING PLOTS (With corrected legend widths to prevent overlap)
     # =========================================================================
-    fig, axes = plt.subplots(1, 2, figsize=(15, 5), layout='constrained')
-    plt.subplots_adjust(wspace=0.45)
-    sc.pl.umap(adata, color=target_obs, title=f"UMAP - Cell Types ({sample_id})", show=False, legend_loc='right margin', ax=axes[0])
-    sc.pl.umap(adata, color=target_obs, title=f"UMAP - Cell Types ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[1])
-    plt.savefig(f'{sample_id}_umap_cell_types.pdf', bbox_inches='tight')
-    plt.close()
+    # Standard UMAP 2x2 Grid Generation
+    if target_obs:
+        fig, axes = plt.subplots(2, 2, figsize=(16, 11))
+        plt.subplots_adjust(wspace=0.35, hspace=0.3)
 
-    if annotated_str.lower() == "true" and target_obs:
-        fig, axes = plt.subplots(1, 2, figsize=(15, 5), layout='constrained')
+        # ROW 1: LEIDEN CLUSTERS
+        sc.pl.umap(adata, color='leiden', title=f"UMAP - Clusters ({sample_id})", show=False, legend_loc='right margin', ax=axes[0, 0])
+        sc.pl.umap(adata, color='leiden', title=f"UMAP - Clusters ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[0, 1])
+
+        # ROW 2: CELL TYPES
+        sc.pl.umap(adata, color=target_obs, title=f"UMAP - Cell Types ({sample_id})", show=False, legend_loc='right margin', ax=axes[1, 0])
+        sc.pl.umap(adata, color=target_obs, title=f"UMAP - Cell Types ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[1, 1])
+
+        plt.savefig(f'{sample_id}_umap_cell_types.pdf', bbox_inches='tight')
+        plt.close()
+    else:
+        fig, axes = plt.subplots(1, 2, figsize=(15, 5))
         plt.subplots_adjust(wspace=0.45)
-        sc.pl.umap(adata, color=target_obs, title=f"UMAP - Cell Types ({sample_id})", show=False, legend_loc='right margin', ax=axes[0])
-        sc.pl.umap(adata, color=target_obs, title=f"UMAP - Cell Types ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[1])
-        plt.savefig(f'{sample_id}_umap_cell_types_annotated.pdf', bbox_inches='tight')
+        sc.pl.umap(adata, color='leiden', title=f"UMAP - Clusters ({sample_id})", show=False, legend_loc='right margin', ax=axes[0])
+        sc.pl.umap(adata, color='leiden', title=f"UMAP - Clusters ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[1])
+        plt.savefig(f'{sample_id}_umap_cell_types.pdf', bbox_inches='tight')
         plt.close()
 
-    fig, axes = plt.subplots(1, 2, figsize=(15, 5), layout='constrained')
-    plt.subplots_adjust(wspace=0.45)
-    sc.pl.pca(adata, color='leiden', title=f"PCA - Clusters ({sample_id})", show=False, legend_loc='right margin', annotate_var_explained=True, ax=axes[0])
-    sc.pl.pca(adata, color='leiden', title=f"PCA - Clusters ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', annotate_var_explained=False, ax=axes[1])
-    plt.savefig(f'{sample_id}_pca_clusters.pdf', bbox_inches='tight')
-    plt.close()
+    # Conditional Annotated UMAP 2x2 Grid Generation
+    if annotated_str.lower() == "true" and target_obs:
+        fig, axes = plt.subplots(2, 2, figsize=(16, 11))
+        plt.subplots_adjust(wspace=0.35, hspace=0.3)
 
-    fig, axes = plt.subplots(1, 2, figsize=(15, 5), layout='constrained')
-    plt.subplots_adjust(wspace=0.45)
-    sc.pl.tsne(adata, color='leiden', title=f"t-SNE - Clusters ({sample_id})", show=False, legend_loc='right margin', ax=axes[0])
-    sc.pl.tsne(adata, color='leiden', title=f"t-SNE - Clusters ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[1])
-    plt.savefig(f'{sample_id}_tsne_clusters.pdf', bbox_inches='tight')
-    plt.close()
+        # ROW 1: LEIDEN CLUSTERS
+        sc.pl.umap(adata, color='leiden', title=f"UMAP - Clusters ({sample_id})", show=False, legend_loc='right margin', ax=axes[0, 0])
+        sc.pl.umap(adata, color='leiden', title=f"UMAP - Clusters ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[0, 1])
+
+        # ROW 2: CELL TYPES
+        sc.pl.umap(adata, color=target_obs, title=f"UMAP - Cell Types ({sample_id})", show=False, legend_loc='right margin', ax=axes[1, 0])
+        sc.pl.umap(adata, color=target_obs, title=f"UMAP - Cell Types ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[1, 1])
+
+        plt.savefig(f'{sample_id}_umap_cell_types_annotated.pdf', bbox_inches='tight')
+        plt.close()
+        
+    # plot PCA with both cluster and cell type views in a 2x2 grid if cell type tracking data is available
+    if target_obs:
+        # Create a 2x2 grid layout to hold both Cluster and Cell Type views seamlessly
+        fig, axes = plt.subplots(2, 2, figsize=(16, 11))
+        
+        # Add explicit spacing to ensure axis text and labels do not overlap
+        plt.subplots_adjust(wspace=0.35, hspace=0.3)
+
+        # ---------------------------------------------------------------------
+        # ROW 1: LEIDEN CLUSTERS
+        # ---------------------------------------------------------------------
+        sc.pl.pca(
+            adata, color='leiden', title=f"PCA - Clusters ({sample_id})", 
+            show=False, legend_loc='right margin', annotate_var_explained=True, 
+            ax=axes[0, 0]
+        )
+        sc.pl.pca(
+            adata, color='leiden', title=f"PCA - Clusters ({sample_id})", 
+            show=False, legend_loc='on data', legend_fontweight='bold', annotate_var_explained=False, 
+            ax=axes[0, 1]
+        )
+
+        # ---------------------------------------------------------------------
+        # ROW 2: CELL TYPE ANNOTATIONS
+        # ---------------------------------------------------------------------
+        sc.pl.pca(
+            adata, color=target_obs, title=f"PCA - Cell Types ({sample_id})", 
+            show=False, legend_loc='right margin', annotate_var_explained=True, 
+            ax=axes[1, 0]
+        )
+        sc.pl.pca(
+            adata, color=target_obs, title=f"PCA - Cell Types ({sample_id})", 
+            show=False, legend_loc='on data', legend_fontweight='bold', annotate_var_explained=False, 
+            ax=axes[1, 1]
+        )
+
+        plt.savefig(f'{sample_id}_pca_clusters.pdf', bbox_inches='tight')
+        plt.close()
+    else:
+        # Fallback to the original 1x2 layout if no cell type tracking data is available
+        fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+        plt.subplots_adjust(wspace=0.45)
+        sc.pl.pca(adata, color='leiden', title=f"PCA - Clusters ({sample_id})", show=False, legend_loc='right margin', annotate_var_explained=True, ax=axes[0])
+        sc.pl.pca(adata, color='leiden', title=f"PCA - Clusters ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[1])
+        plt.savefig(f'{sample_id}_pca_clusters.pdf', bbox_inches='tight')
+        plt.close()
+
+
+    # plot TSNE with both cluster and cell type views in a 2x2 grid if cell type tracking data is available
+    if target_obs:
+        # Create a 2x2 grid layout to hold both Cluster and Cell Type views seamlessly
+        fig, axes = plt.subplots(2, 2, figsize=(16, 11))
+        
+        # Add explicit spacing to ensure axis text and labels do not overlap
+        plt.subplots_adjust(wspace=0.35, hspace=0.3)
+
+        # ---------------------------------------------------------------------
+        # ROW 1: LEIDEN CLUSTERS
+        # ---------------------------------------------------------------------
+        sc.pl.tsne(
+            adata, color='leiden', title=f"t-SNE - Clusters ({sample_id})", 
+            show=False, legend_loc='right margin', 
+            ax=axes[0, 0]
+        )
+        sc.pl.tsne(
+            adata, color='leiden', title=f"t-SNE - Clusters ({sample_id})", 
+            show=False, legend_loc='on data', legend_fontweight='bold', 
+            ax=axes[0, 1]
+        )
+
+        # ---------------------------------------------------------------------
+        # ROW 2: CELL TYPE ANNOTATIONS
+        # ---------------------------------------------------------------------
+        sc.pl.tsne(
+            adata, color=target_obs, title=f"t-SNE - Cell Types ({sample_id})", 
+            show=False, legend_loc='right margin', 
+            ax=axes[1, 0]
+        )
+        sc.pl.tsne(
+            adata, color=target_obs, title=f"t-SNE - Cell Types ({sample_id})", 
+            show=False, legend_loc='on data', legend_fontweight='bold', 
+            ax=axes[1, 1]
+        )
+
+        plt.savefig(f'{sample_id}_tsne_clusters.pdf', bbox_inches='tight')
+        plt.close()
+    else:
+        # Fallback to the original 1x2 layout if no cell type tracking data is available
+        fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+        plt.subplots_adjust(wspace=0.45)
+        sc.pl.tsne(adata, color='leiden', title=f"t-SNE - Clusters ({sample_id})", show=False, legend_loc='right margin', ax=axes[0])
+        sc.pl.tsne(adata, color='leiden', title=f"t-SNE - Clusters ({sample_id})", show=False, legend_loc='on data', legend_fontweight='bold', ax=axes[1])
+        plt.savefig(f'{sample_id}_tsne_clusters.pdf', bbox_inches='tight')
+        plt.close()
 
     # =========================================================================
     # 2. QC METRICS CONSOLIDATED GRIDS
     # =========================================================================
-    qc_cols = ["leiden", "total_counts", "pct_counts_mt", "n_genes_by_counts"]
+    # Define base coordinate columns
+    qc_cols = ["leiden"]
+    
+    # 1. Dynamically inject the cell type tracking layer right next to clusters if it exists
+    if target_obs and target_obs in adata.obs.columns:
+        qc_cols.append(target_obs)
+        
+    qc_cols.extend(["total_counts", "pct_counts_mt", "n_genes_by_counts"])
     valid_qc = [c for c in qc_cols if c in adata.obs.columns]
+    
     if "predicted_doublet" in adata.obs.columns: valid_qc.append("predicted_doublet")
     if "doublet_score" in adata.obs.columns: valid_qc.append("doublet_score")
 
+    # 2. Plot the expanded grids (will automatically scale panel rows based on length)
     sc.pl.umap(adata, color=valid_qc, wspace=0.4, ncols=2, show=False)
     plt.savefig(f'{sample_id}_umap_comprehensive_qc.pdf', bbox_inches='tight')
     plt.close()
@@ -131,7 +245,7 @@ def run_visualization(adata_path, sample_id, marker_genes_file, annotated_str="f
     fig, axes = plt.subplots(
         nrows=nrows_qc, 
         ncols=ncols_qc, 
-        figsize=(ncols_qc * 5.5, nrows_qc * 4.0),
+        figsize=(ncols_qc * 12.0, nrows_qc * 4.5),
         layout=None 
     )
     
@@ -209,12 +323,14 @@ def run_visualization(adata_path, sample_id, marker_genes_file, annotated_str="f
     if available_markers:
         custom_width = max(6, len(flat_gene_list) * 0.45 + 3)
         custom_height = max(4, num_clusters * 0.4 + 2)
+        custom_width_violin = max(15, len(flat_gene_list) * 0.6 + 4)
+        custom_height_violin = max(18, num_clusters * 0.6 + 3) # Significantly increased from 0.4
 
         sc.pl.dotplot(adata, available_markers, "leiden", dendrogram=True, show=False, swap_axes=False, figsize=(custom_width, custom_height))
         plt.savefig(f'{sample_id}_marker_selectedmarkers_dotplot.pdf', bbox_inches='tight')
         plt.close()
 
-        sc.pl.stacked_violin(adata, available_markers, groupby="leiden", swap_axes=False, dendrogram=True, show=False, figsize=(custom_width, custom_height))
+        sc.pl.stacked_violin(adata, available_markers, groupby="leiden", swap_axes=False, dendrogram=True, show=False,dodge=False, figsize=(custom_width_violin, custom_height_violin))
         plt.savefig(f'{sample_id}_marker_selectedmarkers_stacked_violin.pdf', bbox_inches='tight')
         plt.close()
 
@@ -232,33 +348,40 @@ def run_visualization(adata_path, sample_id, marker_genes_file, annotated_str="f
         plt.savefig(f'{sample_id}_marker_custom_pca_expression.pdf', bbox_inches='tight')
         plt.close()
 
-        sc.pl.dotplot(adata, available_markers, "leiden", dendrogram=True, show=False, swap_axes=True, figsize=(custom_width, custom_height), standard_scale='var')
+        sc.pl.dotplot(adata, available_markers, "leiden", dendrogram=True, show=False, swap_axes=True, figsize=(custom_height,custom_width), standard_scale='var')
         plt.savefig(f'{sample_id}_marker_selectedmarkers_dotplot_scaled.pdf', bbox_inches='tight')
         plt.close()
 
         
 
-        # 1. Flatten the dictionary and verify gene presence (same as before)
+        # 1. Flatten the dictionary and verify gene presence
         flat_marker_list = []
         for genes in available_markers.values():
             flat_marker_list.extend(genes)
         flat_marker_list = [g for g in set(flat_marker_list) if g in adata.var_names]
 
-        # 2. DYNAMICALLY ADJUST COLUMNS BASED ON TOTAL GENES
+        # 2. Extract expression matrix safely into long-form pandas dataframe
+        expr_df = sc.get.obs_df(adata, keys=flat_marker_list + ['leiden'])
+        expr_df['leiden'] = pd.Categorical(
+            expr_df['leiden'], 
+            categories=sorted(expr_df['leiden'].unique(), key=int), 
+            ordered=True
+        )
+
+        # 3. SET A BALANCED 3-COLUMN GRID
         num_genes = len(flat_marker_list)
         if num_genes <= 2:
             ncols = num_genes
         elif num_genes <= 6:
-            ncols = 3
+            ncols = 2
         else:
-            ncols = 4  # Max out at 4 columns for large sets of genes
+            ncols = 3  # Standard 3-column grid structure
 
-        
         nrows = math.ceil(num_genes / ncols)
 
-        # 3. DYNAMICALLY SIZE THE FIGSIZE (Give each panel a wider 5.5 inch width)
-        panel_width = 5.5   # Increased from 4 to 5.5 to make panels wider/less narrow
-        panel_height = 4.0  # Slightly increased height for proportion
+        # Proportional dimensioning: 7 inches width per column gives a comfortable 21-inch total document scope
+        panel_width = 7.0   
+        panel_height = 4.0   
         
         fig, axes = plt.subplots(
             nrows=nrows, 
@@ -266,33 +389,44 @@ def run_visualization(adata_path, sample_id, marker_genes_file, annotated_str="f
             figsize=(ncols * panel_width, nrows * panel_height)
         )
         
-        # Ensure axes is a flat array even if it's a 1-panel or 1-row plot
+        # Inject precise explicit margins between panels to avoid overlapping text blocks
+        plt.subplots_adjust(wspace=0.3, hspace=0.45)
+        
         if num_genes == 1:
             axes = [axes]
         else:
             axes = axes.flatten()
 
-        # 4. Loop through each gene and plot it in its own subplot panel
+        # 4. Populate with explicit centering and clean shape tracking
         for i, gene in enumerate(flat_marker_list):
-            sc.pl.violin(
-                adata, 
-                keys=gene, 
-                groupby="leiden", 
-                stripplot=False, 
-                ax=axes[i],      # <--- Direct the plot to the correct subplot panel
-                show=False
+            sns.violinplot(
+                data=expr_df,
+                x='leiden',
+                y=gene,
+                ax=axes[i],
+                inner=None,             # Removes inner box indicators for maximum clarity
+                density_norm='width',    # Normalizes across unequal cluster sizes
+                hue='leiden',           # Applies custom palette coloring
+                dodge=False,            # RETAINED: Snaps violins perfectly onto tick centers
+                width=0.85,             # Standardized optimal width per cluster track
+                legend=False
             )
-            axes[i].set_title(gene)  # Ensure the gene name is cleanly labeled on top
+            
+            # Subplot Text Properties
+            axes[i].set_title(gene, fontsize=16, fontweight='bold', pad=12)
+            axes[i].set_ylabel('Expression Level', fontsize=10)
+            
+            # Keeps numbers completely horizontal on a single crisp row
+            axes[i].tick_params(axis='x', labelsize=10, rotation=0)
+            axes[i].set_xticklabels(axes[i].get_xticklabels(), ha='center')
 
-        # 5. Hide any blank panels at the end if your gene count doesn't perfectly fill the grid
+        # 5. Hide any blank panels at the trailing edge of the grid layout
         for j in range(i + 1, len(axes)):
             fig.delaxes(axes[j])
 
-        # 6. Adjust spacing and save the figure
-        plt.tight_layout()
+        # 6. Export vector file (CRITICAL: plt.tight_layout omitted completely)
         plt.savefig(f'{sample_id}_all_markers_individual_violins.pdf', bbox_inches='tight')
-        plt.close()
-        
+        plt.close()        
 
     # =========================================================================
     # 4. CELL TYPE / CLUSTER DISTRIBUTION (STACKED BAR PLOTS)

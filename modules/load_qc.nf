@@ -14,8 +14,17 @@ process LOAD_AND_QC {
 
     script:
     def chem = meta.chemistry
+    def sample_id = meta.id
+    def batch = meta.batch
+    def treatment = meta.treatment
+
     """
     #!/usr/bin/env python3
+    import sys
+    import os
+
+    # Dynamically add the directory containing sctypepy to the Python Path
+    sys.path.append(os.path.join("${workflow.projectDir}", "bin"))
     import scanpy as sc
     import pandas as pd
     import matplotlib
@@ -32,47 +41,74 @@ process LOAD_AND_QC {
     sc.settings.verbosity = 3
     sc.settings.set_figure_params(dpi=150, facecolor='white')
 
-    # Load data
     input_path = '${input_dir_or_file}'
     print(f"Loading data for ${meta.id} from: {input_path}")
     
+    # Pathway 1: Raw Cell Ranger plain text matrix directory structure
     if os.path.isdir(input_path):
         print("Detected directory structure. Reading as Cell Ranger MTX format...")
         adata = sc.read_10x_mtx(input_path, var_names='gene_symbols', cache=True)
+        
+        # Backup Ensembl ID mapping tracking column if present
+        if 'gene_ids' in adata.var.columns:
+            adata.var['ensembl_id'] = adata.var['gene_ids']
+        
+    # Pathway 2: Pre-converted Scanpy AnnData matrix datasets
     elif input_path.endswith('.h5ad'):
-        print("Detected AnnData H5AD file. Reading via sc.read_h5ad...")
+        print(f"Detected AnnData H5AD file: {input_path}. Reading via sc.read_h5ad...")
         adata = sc.read_h5ad(input_path)
-        # If the file came from an old cellbender run and has ensembl IDs in index, resolve it:
-        if 'gene_name' in adata.var.columns:
-            adata.var['ensembl_id'] = adata.var_names
-            adata.var_names = adata.var['gene_name']
-        adata.var_names_make_unique()
+        
+        # Intercept and fix Ensembl ID structural indexes using verified column mapping
+        #if adata.var_names.str.startswith('ENSMUSG').any() or adata.var_names.str.startswith('ENSG').any():
+            #symbol_col = None
+            ## Prioritize the verified 'gene_symbols' track directly output by Cell Ranger
+            #for col in ['gene_symbols', 'gene_name', 'symbol', 'gene_id', 'gene_ids']:
+                #if col in adata.var.columns:
+                    ## Guard against empty entries or duplicate Ensembl maps
+                    #if not adata.var[col].astype(str).str.startswith('ENS').all() and not adata.var[col].astype(str).str.upper().isin(['NA', 'NAN', 'NONE']).all():
+                        #symbol_col = col
+                        #break
+            
+            #if symbol_col:
+                #print(f"Found clean Ensembl mapping column: '{symbol_col}'. Restoring Gene Symbols...")
+                #adata.var['ensembl_id'] = adata.var_names
+                #adata.var_names = adata.var[symbol_col].astype(str)
+            #else:
+                #print("WARNING: var_names are Ensembl IDs, but no valid display column was found in metadata table.")
+        
+        #adata.var_names_make_unique()
+        
+    # Pathway 3: Binary H5 containers compiled by Cell Ranger count pipelines
     elif input_path.endswith('.h5') or input_path.endswith('.hdf5'):
-        print("Detected H5 file. Using CellBender loader to restore MGI Gene Symbols...")
-        from cellbender.remove_background.downstream import anndata_from_h5
+        print("Detected Cell Ranger binary H5 file tree container. Ingesting features natively...")
+        # read_10x_h5 natively extracts 'gene_symbols' directly into your primary array matrix index
+        adata = sc.read_10x_h5(input_path)
         
-        # FIXED: This automatically sets var_names to Gene Symbols and keeps counts structured
-        adata = anndata_from_h5(input_path)
+        if 'gene_ids' in adata.var.columns:
+            adata.var['ensembl_id'] = adata.var['gene_ids']
         adata.var_names_make_unique()
-    else:
-        raise ValueError(f"Unsupported file format found for input: {input_path}")
         
-    # INSERT THE ROUNDING PROTOCOL HERE
-    if 'cellbender_filter' in input_path:
-        print("Rounding non-integer CellBender background probabilities back to whole counts...")
-        from scipy.sparse import issparse
-        if issparse(adata.X):
-            adata.X.data = np.round(adata.X.data)
-        else:
-            adata.X = np.round(adata.X)
-    
+    else:
+        raise ValueError(f"Unsupported input file format variation provided: {input_path}")
+
+    # ------------------------------------------------------------------
+    # METADATA INJECTION BLOCK
+    # ------------------------------------------------------------------
+    # Assign metadata values mapped directly from Nextflow's samplesheet channel
+    adata.obs['sample_id'] = "${sample_id}"
+    adata.obs['batch']     = "${batch}"
+    adata.obs['treatment'] = "${treatment}"
+    adata.obs['chemistry'] = "${chem}"
+    print(f"Successfully appended metadata metadata columns to AnnData.obs matrix structure.")
+    # ------------------------------------------------------------------
+                
     # Initial stats
     n_cells_initial = adata.n_obs
     n_genes_initial = adata.n_vars
 
     # Mitochondrial genes identification
-    adata.var['mt'] = adata.var_names.str.startswith('mt-') | adata.var_names.str.startswith('Mt-') | adata.var_names.str.startswith('MT-')
-
+    #adata.var['mt'] = adata.var_names.str.startswith('mt-') | adata.var_names.str.startswith('Mt-') | adata.var_names.str.startswith('MT-')
+    adata.var['mt'] = adata.var_names.str.lower().str.startswith('mt-')
     # Calculate QC metrics
     sc.pp.calculate_qc_metrics(
         adata, qc_vars=["mt"], inplace=True, percent_top=[20], log1p=True

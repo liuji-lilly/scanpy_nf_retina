@@ -1,0 +1,60 @@
+name: scanpy-pipeline
+channels:
+  - conda-forge
+  - bioconda
+
+dependencies:
+  - python>=3.11,<3.13
+  - pip
+
+  # Core scientific computing
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - seaborn
+  # Structural single-cell tools from Conda channels
+  - pertpy >=0.8.0   
+  - lamindb  # Data & workflow management (add extras like aws if needed)
+  - pydeseq2
+
+  # Single-cell analysis
+  - scanpy>=1.10.0
+  - anndata>=0.10.0
+  - igraph
+  - leidenalg
+  - omicverse
+  - decoupler >=1.5.0  
+  - cellbender
+  # Image processing (Required by Scrublet for automatic thresholding)
+  - scikit-image
+  # Single-cell file formats and compression
+  - h5py
+  - numcodecs <0.16
+  - pytables
+  - openpyxl
+
+  # Additional dependencies
+  - scikit-learn
+  - statsmodels
+  - numba
+  - umap-learn
+  # Text adjustment for clean plots
+  - adjusttext
+  # HTTP library for web requests
+  - requests
+
+    # R Core and Jupyter Integration (Required for %%R magic)
+  - r-base>=4.3
+  - rpy2
+
+  # R Packages from Conda-Forge & Bioconda
+  - r-seurat
+  - bioconductor-scater
+  - bioconductor-scdblfinder
+  - bioconductor-singlecellexperiment
+  - bioconductor-biocparallel
+  - bioconductor-scry
+  - pip:
+      #- omicverse
+      - pyscdblfinder

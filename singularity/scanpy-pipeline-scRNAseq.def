@@ -1,0 +1,78 @@
+Bootstrap: docker
+From: condaforge/mambaforge:latest
+
+%labels
+    Version 1.0.0
+    Description Singularity container for Scanpy single-cell pipeline incorporating both Python and R/Bioconductor tools.
+
+%help
+    This container provides a complete environment for single-cell analysis using Scanpy and Seurat.
+    It resolves complex cross-runtime dependencies (Python + R via rpy2) using Mamba.
+    
+    Usage:
+        singularity exec scanpy-pipeline.sif scanpy --version
+        singularity exec scanpy-pipeline.sif R -e "library(Seurat)"
+
+%files
+    # If you want to copy a pre-written environment layout file explicitly:
+    # environment.yml /opt/environment.yml
+
+%post
+    # Install foundational system-level dependencies for R and specific compilation steps
+    apt-get update && apt-get install -y --no-install-recommends         build-essential         git         wget         libxml2-dev         libcairo2-dev         libgit2-dev         && apt-get clean         && rm -rf /var/lib/apt/lists/*
+
+    # Create the environment file dynamically inside the container build context
+    cat << 'EOF' > /opt/environment.yml
+name: scanpy-pipeline
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python>=3.11,<3.13
+  - numpy
+  - scipy
+  - pandas
+  - matplotlib
+  - seaborn
+  - pertpy>=0.8.0
+  - lamindb
+  - pydeseq2
+  - scanpy
+  - anndata
+  - igraph
+  - leidenalg
+  - omicverse
+  - decoupler>=1.5.0
+  - cellbender
+  - scikit-image
+  - h5py
+  - numcodecs<0.16
+  - pytables
+  - openpyxl
+  - scikit-learn
+  - statsmodels
+  - numba
+  - umap-learn
+  - adjusttext
+  - requests
+  - r-base
+  - rpy2
+  - r-seurat
+  - bioconductor-scater
+  - bioconductor-scdblfinder
+  - bioconductor-singlecellexperiment
+  - bioconductor-biocparallel
+  - bioconductor-scry
+  - pip
+EOF
+
+    # Update the base conda system and build out the targeted environment using the fast mamba solver
+    mamba env update -n base -f /opt/environment.yml && mamba clean --all -y
+
+%environment
+    export LC_ALL=C
+    export MPLBACKEND=Agg
+    export NUMBA_CACHE_DIR=/tmp
+
+%runscript
+    exec "$@"
