@@ -11,6 +11,7 @@ from muon import atac as ac
 from muon import prot as pt
 import kaleido
 import magic
+import numpy as np
 
 # Run the built-in chrome download script
 kaleido.get_chrome_sync()
@@ -57,6 +58,7 @@ data_atac = snap.pp.import_fragments(
 
 print(data_atac)
 
+#sc.pp.calculate_qc_metrics(data_atac, percent_top=None, log1p=False, inplace=True)
 
 # 2. Compute TSS enrichment scores
 snap.metrics.tsse(data_atac, gene_anno=genome_assembly)
@@ -339,22 +341,201 @@ fig.write_image(
     scale=3
 )
 
-# 12. Read your matched gene expression matrix 
-# (Parsing MTX layout avoids the known Unicode h5py decoding crashes)
-data_rna = sc.read_10x_mtx("/fsx/home/l128405/10xgenomics/multiome/S41A/S41A/outs/filtered_feature_bc_matrix")
+import numpy as np
+import pandas as pd
+import scanpy as sc
 
-# Ensure cell barcodes match explicitly across both structures
-shared_barcodes = list(set(data_rna.obs_names) & set(data_peaks.obs_names))
-data_rna = data_rna[shared_barcodes].copy()
-data_peaks = data_peaks[shared_barcodes].copy()
+from matplotlib import pyplot as plt
+import seaborn as sns
+import muon as mu
+import matplotlib
+# Ensure headless rendering is active on the cluster node
+matplotlib.use('Agg')
 
-# 13. Create your unified MuData object
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+atac_input_file = "/fsx/home/l128405/10xgenomics/multiome/S41A/analysis/ATAC/02_clustering/S41A_atac_clustered.h5ad"
+atac_input_file = "/fsx/home/l128405/10xgenomics/multiome/S41A/analysis/ATAC/01_qc/S41A_atac_qc.h5ad"
+data_atac = snap.read(atac_input_file)
+
+peak_file = "/fsx/home/l128405/10xgenomics/multiome/S41A/analysis/ATAC/03_peaks_and_motif/S41A_atac_leiden_peak_matrix.h5ad"
+rna_input_file = "/fsx/home/l128405/10xgenomics/multiome/S41A/analysis/06_annotation/S41A_adata_annotated.h5ad"
+genome_assembly = snap.genome.mm39 
+
+data_rna = sc.read(rna_input_file)
+data_atac = sc.read(peak_file)
+
+# 2. Synchronize cell barcodes (Crucial step)
+# This keeps only the cells that successfully passed QC in BOTH modalities
+# Align your barcodes normally
+common_cells = data_rna.obs_names.intersection(data_atac.obs_names)
+rna_subset = data_rna[common_cells, :].copy()
+atac_subset = data_atac[common_cells, :].copy()
+
+# 3. Create the Multimodal container
+# This links them while letting you access RNA via mdata['rna'] and ATAC via mdata['atac']
+# Integrate into your multimodal container
 mdata = mu.MuData({
-    "rna": data_rna,
-    "atac": data_peaks
+    'rna': rna_subset,
+    'atac': atac_subset
 })
 
-print("🚀 Joint Multiome Object Built Successfully:")
+mdata.write('S41A_integrated_multiome.h5mu')
 print(mdata)
 
+data_rna.shape
+data_atac.shape
 
+mdata.shape
+
+# Calculate total number of cells of respective ATAC celltypes
+# Safely extract the raw series into a fresh dictionary-built DataFrame
+df_mapping = pd.DataFrame({
+    "atac_leiden": mdata['atac'].obs["atac_leiden"].values,
+    "rna_leiden": mdata['rna'].obs["leiden"].values
+}, index=mdata.obs_names)
+print(f"Number of unique RNA clusters (leiden): {df_mapping['rna_leiden'].nunique()}")
+print(f"Number of unique ATAC clusters (atac_leiden): {df_mapping['atac_leiden'].nunique()}")
+# 2. Re-calculate df_total based on the clean column names
+df_total = (
+    df_mapping.groupby("atac_leiden", observed=False)
+    .size()
+    .reset_index(name="n_total")
+    .set_index("atac_leiden")
+)
+
+# 3. Calculate number of cells and merge total sizes
+df = (
+    df_mapping.groupby(["atac_leiden", "rna_leiden"], observed=False)
+    .size()
+    .reset_index(name="n")
+    .set_index("atac_leiden")
+    .join(df_total)
+    .reset_index()
+)
+
+df_frac = df.assign(frac = lambda x: x.n / x.n_total)
+
+# 5. Pivot into your target wide-form correlation matrix
+df_wide = df.set_index("atac_leiden").pivot(columns="rna_leiden", values="frac")
+
+# 2. Set up the figure canvas layout size (Width=10 inches, Height=8 inches)
+# Adjust these dimensions depending on how many total clusters you have!
+fig, ax = plt.subplots(figsize=(10, 8))
+
+# 3. Draw the seaborn heatmap with formatting tweaks
+sns.heatmap(
+    df_wide, 
+    cmap="Greys", 
+    annot=True,          
+    fmt=".2f",           # Limit fractions to 2 decimal places to keep string length short
+    annot_kws={"size": 6},  #  SCALES TEXT NUMBERS DOWN (Change 6 to 5 or 7 to adjust)
+    linewidths=0.2,      # Thinner grid borders so they don't overpower small numbers
+    linecolor="lightgray",
+    cbar_kws={"label": "Fraction of Cells"}, # Clean title for color bar legend
+    ax=ax
+)
+
+# 4. Clean up titles and axis label designations
+ax.set_title("Modality Correlation: ATAC vs RNA Clusters Matrix", fontsize=14, pad=15)
+ax.set_xlabel("RNA Clusters (leiden)", fontsize=12)
+ax.set_ylabel("ATAC Clusters (atac_leiden)", fontsize=12)
+
+# Rotate label text to prevent overlapping issues
+plt.xticks(rotation=45, ha='right')
+plt.yticks(rotation=0)
+
+# 5. Fix bounding layout margins so text doesn't clip
+plt.tight_layout()
+
+# 6. Save out the crisp vector graphics canvas
+output_pdf_path = "S41A_tac_rna_cluster_correlation_heatmap.pdf"
+plt.savefig(output_pdf_path, dpi=300, format="pdf")
+
+# Close the figure instance to clear environment RAM
+plt.close(fig)
+
+# multi-omic factor analysis  
+print("Performing MOFA")
+
+mdata=xx.read('S41A_integrated_multiome.h5mu')
+
+# 1. Ensure you have calculated highly variable features for RNA
+# Standard practice is to subset to highly variable genes first
+sc.pp.highly_variable_genes(mdata['rna'], n_top_genes=3000)
+mdata.mod['rna'] = mdata['rna'][:, mdata['rna'].var['highly_variable']].copy()
+
+# 2. Filter the massive ATAC feature space down to highly variable or top selected peaks
+# Working with 5.2M features directly will cause MOFA to crash. We extract the top peaks:
+if 'selected' in mdata['atac'].var.columns:
+    # Use the selection generated during your SnapATAC2 processing run
+    mdata.mod['atac'] = mdata['atac'][:, mdata['atac'].var['selected'] == True].copy()
+else:
+    # Fallback: keep peaks with a minimum number of counts
+    sc.pp.filter_genes(mdata['atac'], min_cells=5)
+    
+# If the feature space is still > 50,000 features, subset further for MOFA performance:
+if mdata['atac'].n_vars > 50000:
+    # Quick variance calculation to keep the top 50,000 highest variance peaks
+    # MOFA performs best when features are limited to highly variable signatures
+    variances = np.array(mdata['atac'].X.power(2).mean(axis=0) - np.power(mdata['atac'].X.mean(axis=0), 2)).flatten()
+    top_indices = np.argsort(variances)[-50000:]
+    mdata.mod['atac'] = mdata['atac'][:, top_indices].copy()
+
+# 3. CRITICAL FIX: Cast matrices explicitly to float32 to eliminate the NaN integer error
+mdata['rna'].X = mdata['rna'].X.astype(np.float32)
+# If ATAC is stored as a backed file wrapper or sparse matrix, load the subsetted slice to memory as float32
+if hasattr(mdata['atac'].X, "toarray") or isinstance(mdata['atac'].X, csr_matrix):
+    mdata['atac'].X = mdata['atac'].X.astype(np.float32)
+else:
+    # If it is a SnapATAC2 matrix wrapper, pull the subset into memory as a standard float32 sparse matrix
+    mdata['atac'].X = csr_matrix(mdata['atac'].X[:], dtype=np.float32)
+
+# 4. Synchronize the shapes across the MuData container after subsetting
+mdata.update()
+
+# 1. Sanitize RNA feature names (var_names) to strict clean text
+mdata['rna'].var_names = [
+    str(x).replace('“', '').replace('”', '').replace('"', '').replace("'", "").encode('ascii', 'ignore').decode('ascii') 
+    for x in mdata['rna'].var_names
+]
+# 2. Sanitize ATAC feature names (var_names) 
+mdata['atac'].var_names = [
+    str(x).replace('“', '').replace('”', '').replace('"', '').replace("'", "").encode('ascii', 'ignore').decode('ascii') 
+    for x in mdata['atac'].var_names
+]
+# 3. Double-check and sanitize observation/cell names just in case
+mdata.obs_names = [
+    str(x).encode('ascii', 'ignore').decode('ascii') 
+    for x in mdata.obs_names
+]
+# 4. Synchronize the internal MuData maps
+mdata.update()
+
+# 1. Clean Mudata-level var metadata strings
+for col in mdata.var.columns:
+    if mdata.var[col].dtype == object or mdata.var[col].dtype.name == 'category':
+        mdata.var[col] = mdata.var[col].astype(str).str.replace('“', '"').str.replace('”', '"')
+
+# 2. Clean individual modality var metadata strings (RNA and ATAC)
+for mod in mdata.mod.keys():
+    # Clean the index (feature names) just in case
+    mdata.mod[mod].var.index = mdata.mod[mod].var.index.astype(str).str.replace('“', '"').str.replace('”', '"')
+    
+    # Clean all string columns in the modality's var dataframe
+    for col in mdata.mod[mod].var.columns:
+        if mdata.mod[mod].var[col].dtype == object or mdata.mod[mod].var[col].dtype.name == 'category':
+            mdata.mod[mod].var[col] = mdata.mod[mod].var[col].astype(str).str.replace('“', '"').str.replace('”', '"')
+
+# Retry running MOFA
+mu.tl.mofa(mdata, outfile="S41A_rna_atac_integrated.hdf5")
+
+# 5. Run MOFA+ (It will now successfully save the file)
+mu.tl.mofa(mdata, outfile="mu.tl.mofa(mdata, outfile="S41A_rna_atac_integrated.hdf5")")
+
+print("MOFA+ trained and saved successfully!")
+print(mdata)
+
+mdata.obsm['X_mofa'].shape
